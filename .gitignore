@@ -12,6 +12,7 @@ frontend/dist
 dist-ssr
 *.local
 backend/__pycache__
+backend/venv
 *.pyc
 
 # Editor directories and files
