@@ -6,7 +6,7 @@ import { Search } from "lucide-react"
 //import { cn } from "@/lib/utils"
 
 const cn = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ")"
+  classes.filter(Boolean).join(" ")
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 const Command = React.forwardRef<

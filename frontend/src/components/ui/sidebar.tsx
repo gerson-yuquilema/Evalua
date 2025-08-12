@@ -7,7 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile"
 //import { cn } from "@/lib/utils"
 
 const cn = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ")"
+  classes.filter(Boolean).join(" ")
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"

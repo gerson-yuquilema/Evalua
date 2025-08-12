@@ -5,7 +5,7 @@ import { X } from "lucide-react"
 //import { cn } from "@/lib/utils"
 
 const cn = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ")"
+  classes.filter(Boolean).join(" ")
 
 const Dialog = DialogPrimitive.Root
 

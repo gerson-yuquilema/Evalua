@@ -6,7 +6,7 @@ import * as React from "react"
 //import { cn } from "@/lib/utils"
 
 const cn = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ")"
+  classes.filter(Boolean).join(" ")
 
 const Sheet = SheetPrimitive.Root
 

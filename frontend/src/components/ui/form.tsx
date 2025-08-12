@@ -13,7 +13,7 @@ import {
 //import { cn } from "@/lib/utils"
 
 const cn = (...classes: Array<string | false | null | undefined>) =>
-  classes.filter(Boolean).join(" ")"
+  classes.filter(Boolean).join(" ")
 import { Label } from "@/components/ui/label"
 
 const Form = FormProvider
