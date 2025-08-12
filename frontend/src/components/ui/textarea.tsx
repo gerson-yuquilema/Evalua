@@ -1,6 +1,9 @@
 import * as React from "react"
 
-import { cn } from "@/lib/utils"
+//import { cn } from "@/lib/utils"
+
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ")"
 
 export interface TextareaProps
   extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}

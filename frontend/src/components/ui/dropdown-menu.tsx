@@ -2,7 +2,10 @@ import * as React from "react"
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
-import { cn } from "@/lib/utils"
+//import { cn } from "@/lib/utils"
+
+const cn = (...classes: Array<string | false | null | undefined>) =>
+  classes.filter(Boolean).join(" ")"
 
 const DropdownMenu = DropdownMenuPrimitive.Root
 
