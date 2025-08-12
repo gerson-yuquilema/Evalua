@@ -2,6 +2,7 @@
 import io, os
 from pathlib import Path
 from typing import List, Optional, Dict
+
 import numpy as np
 import pandas as pd
 import joblib
@@ -34,11 +35,11 @@ def harmonize_feature_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     # Fix UTF-8 roto / variantes
     for c in list(df.columns):
-        new_c = (c
-                 .replace("reseÃ±as", "reseñas")
-                 .replace("rese\u00f1as", "reseñas")
-                 .replace("resenas", "reseñas")
-                 )
+        new_c = (
+            c.replace("reseÃ±as", "reseñas")
+             .replace("rese\u00f1as", "reseñas")
+             .replace("resenas", "reseñas")
+        )
         if new_c != c:
             rename_map[c] = new_c
 
@@ -109,19 +110,22 @@ def ensure_ruc_column(df: pd.DataFrame, *, default_ruc: Optional[str], df_name: 
 # ------------------------
 app = FastAPI()
 
+# Rutas candidatas del modelo
+HERE = Path(__file__).resolve().parent
 MODEL_CANDIDATES = [
-    Path("backend/modelo_riesgo_simplificado.pkl"),
+    HERE / "modelo_riesgo_simplificado.pkl",
+    Path("backend") / "modelo_riesgo_simplificado.pkl",
     Path("./modelo_riesgo_simplificado.pkl"),
 ]
 MODEL_DATA: Optional[Dict] = None
 for p in MODEL_CANDIDATES:
-    if p.exists():
-        try:
+    try:
+        if p.exists():
             MODEL_DATA = joblib.load(p)
             print(f"[OK] Modelo cargado desde: {p.resolve()}")
             break
-        except Exception as e:
-            print(f"[WARN] No pude cargar {p}: {e}")
+    except Exception as e:
+        print(f"[WARN] No pude cargar {p}: {e}")
 if MODEL_DATA is None:
     print("[ERROR] No se pudo cargar el modelo .pkl (esperado keys: 'model','label_map','features')")
 
@@ -286,38 +290,33 @@ async def predict(
     except KeyError as e:
         raise HTTPException(500, f"No se pudieron alinear las features esperadas: {e}")
 
-    # Chequeo de forma antes de predecir
     if X.shape[1] != len(feature_list):
         raise HTTPException(
             500,
             f"Número de features inconsistente. Esperadas {len(feature_list)}, obtenidas {X.shape[1]}"
         )
 
-    # --- Predicción robusta (siempre clases, no probabilidades mal interpretadas) ---
+    # --- Predicción robusta ---
+    proba_mean = None
     try:
         proba = model.predict_proba(X)  # (n_samples, n_classes)
         classes = getattr(model, "classes_", None)
-
         idx = np.argmax(proba, axis=1)
 
         if classes is None:
-            # Fallback: clases 0..k-1
             preds_enc = idx.astype(int)
             preds_lbl = [inv_label_map.get(int(c), "medio") for c in preds_enc]
         else:
             classes = np.asarray(classes)
-            # Si el modelo usa strings como clases
             if classes.dtype.kind in ("U", "S", "O"):
                 preds_lbl = [str(classes[i]) for i in idx]
             else:
-                # Clases numéricas -> mapear con label_map inverso
                 preds_enc = classes[idx].astype(int)
                 preds_lbl = [inv_label_map.get(int(c), "medio") for c in preds_enc]
 
         proba_mean = proba.mean(axis=0).tolist()
 
     except Exception:
-        # Si no existe predict_proba, usamos predict con cuidado
         raw_pred = model.predict(X)
         if hasattr(raw_pred, "ndim") and getattr(raw_pred, "ndim", 1) == 2 and raw_pred.shape[1] > 1:
             idx = np.argmax(raw_pred, axis=1)
@@ -339,27 +338,10 @@ async def predict(
     scores = [riesgo_to_score(lbl) for lbl in preds_lbl]
     score_final = int(np.clip(np.mean(scores), 0, 100))
 
-    # Predicción
-    preds_enc = model.predict(X)
-    preds_lbl = [inv_label_map.get(int(p), "medio") for p in preds_enc]
-
-    scores = [riesgo_to_score(lbl) for lbl in preds_lbl]
-    score_final = int(np.clip(np.mean(scores), 0, 100))
-
     # 📌 Parche temporal para demo
     if ruc_objetivo == "1790002222002":
         score_final = 60
         preds_lbl = ["medio"] * len(preds_lbl)
-
-    return {
-        "ruc": ruc_objetivo,
-        "score": score_final,
-        "n_registros": int(len(df_feat)),
-        "detalle": preds_lbl[:50],
-        "features_usadas": feature_list,
-        "features_faltantes_rellenas_cero": faltantes,
-        "cols_disponibles_sample": list(df_feat.columns)[:100],
-    }
 
     return {
         "ruc": ruc_objetivo,
@@ -400,12 +382,17 @@ async def debug_columns(
     }
 
 # ------------------------
-# Servir frontend si existe build
+# Servir frontend si existe build (ruta ABSOLUTA)
 # ------------------------
-if os.path.isdir("backend/static"):
-    app.mount("/", StaticFiles(directory="backend/static", html=True), name="static")
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+INDEX_FILE = STATIC_DIR / "index.html"
+
+if STATIC_DIR.is_dir() and INDEX_FILE.is_file():
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
-        idx = os.path.join("backend", "static", "index.html")
-        return FileResponse(idx) if os.path.exists(idx) else {"detail": "static not found"}
+        return FileResponse(str(INDEX_FILE))
+else:
+    print(f"[WARN] Static no encontrado en {STATIC_DIR}. 404 en /")
