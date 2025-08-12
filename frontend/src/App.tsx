@@ -14,6 +14,7 @@ import Dashboard from "./components/Dashboard";
 
 const queryClient = new QueryClient();
 
+//prueba
 // Home compuesto (pantalla principal)
 function Home() {
   return (
