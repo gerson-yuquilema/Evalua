@@ -21,7 +21,7 @@ RUN chmod +x build.sh dev.sh || true
 
 # --- BUILD del proyecto usando TU build.sh ---
 # Esto instala requirements, hace npm ci/build y copia frontend/dist a backend/static
-RUN ./build.sh
+RUN ./dev.sh
 
 # Asegúrate de que uvicorn esté disponible (si no viene en requirements.txt)
 RUN python -m pip install --no-cache-dir "uvicorn[standard]"
