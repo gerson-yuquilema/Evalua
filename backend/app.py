@@ -382,35 +382,17 @@ async def debug_columns(
     }
 
 # ------------------------
-# Servir frontend si existe build (SPA con fallback)
+# Servir frontend si existe build (ruta ABSOLUTA)
 # ------------------------
-from fastapi.responses import FileResponse, Response
-from starlette.types import Scope, Receive, Send
-
 BASE_DIR = Path(__file__).resolve().parent
-# aquí es donde tu build.sh copió frontend/dist/*
 STATIC_DIR = BASE_DIR / "static"
 INDEX_FILE = STATIC_DIR / "index.html"
 
 if STATIC_DIR.is_dir() and INDEX_FILE.is_file():
-    # 1) Servimos todos los archivos estáticos (js/css/assets) en /static/*
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR), html=False), name="static")
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
-    # 2) Raíz "/" -> index.html (no cachear)
-    @app.get("/", include_in_schema=False)
-    def serve_root() -> Response:
-        return FileResponse(str(INDEX_FILE), headers={"Cache-Control": "no-cache"})
-
-    # 3) Fallback SPA: cualquier ruta que NO empiece con /api ni /health
-    @app.get("/{full_path:path}", include_in_schema=False)
+    @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
-        # deja pasar API/health si llegaran aquí por orden de rutas
-        if full_path.startswith("api") or full_path == "health":
-            # que Starlette siga resolviendo (no devolvemos index para estas)
-            # Devolvemos 404 para que otra ruta más específica responda
-            # (en la práctica no llegará aquí si las /api ya se definieron antes)
-            return Response(status_code=404)
-        return FileResponse(str(INDEX_FILE), headers={"Cache-Control": "no-cache"})
+        return FileResponse(str(INDEX_FILE))
 else:
-    print(f"[WARN] No se encontró build del frontend en {STATIC_DIR}. "
-          f"Ejecuta ./build.sh para generar backend/static")
+    print(f"[WARN] Static no encontrado en {STATIC_DIR}. 404 en /")
