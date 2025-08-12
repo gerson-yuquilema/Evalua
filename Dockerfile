@@ -1,36 +1,37 @@
-# Usa una imagen base con Python y Node preinstalados
-FROM python:3.10-slim
+# ===== Imagen única con Python + Node =====
+FROM python:3.12-slim
 
-# Instala Node.js
-RUN apt-get update && \
-    apt-get install -y curl gnupg && \
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    apt-get clean
+# --- SO base + Node ---
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates gnupg tini \
+ && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs \
+ && rm -rf /var/lib/apt/lists/*
 
-# Crea directorio de trabajo
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# Copia todos los archivos del proyecto
+# Copiamos todo el repo (usa .dockerignore si tienes archivos pesados)
 COPY . .
 
-# Instala dependencias Python
-RUN pip install --no-cache-dir lightgbm transformers sentence-transformers scikit-learn pandas numpy joblib
+# Asegura que los scripts se puedan ejecutar
+RUN chmod +x build.sh dev.sh || true
 
-# Instala dependencias Node
-RUN npm install
+# --- BUILD del proyecto usando TU build.sh ---
+# Esto instala requirements, hace npm ci/build y copia frontend/dist a backend/static
+RUN ./build.sh
 
-# Da permisos de ejecución al script
-RUN chmod +x start.sh
+# Asegúrate de que uvicorn esté disponible (si no viene en requirements.txt)
+RUN python -m pip install --no-cache-dir "uvicorn[standard]"
 
-# Expone los puertos del backend y frontend
+# Render inyecta PORT. Si no está, usa 8000.
+ENV PORT=8000
 EXPOSE 8000
-EXPOSE 8001
 
-# Define variables de entorno (puedes sobreescribirlas en tiempo de ejecución)
-ENV SUPABASE_URL="https://ywlyxdgcgwdwkyaelvtx.supabase.co"
-ENV SUPABASE_KEY="sb_secret_MqJDBd13EXLDKlfacGB2_Q_nx6vJnw_"
-ENV BROWSER="echo"  
+# Tini para manejar señales correctamente
+ENTRYPOINT ["/usr/bin/tini", "--"]
 
-# Comando de inicio
-CMD ["./start.sh"]
+# Ejecuta el backend (FastAPI) sirviendo el build estático que quedó en backend/static
+CMD ["bash", "-lc", "cd backend && exec uvicorn app:app --host 0.0.0.0 --port ${PORT:-8000}"]
